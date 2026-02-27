@@ -1,145 +1,146 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { updateProfile, getDocuments } from "@/lib/api";
 import DashboardNav from "@/components/DashboardNav";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { User, Save, FileText } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import { motion } from "framer-motion";
+import { Loader2, Save, FileText } from "lucide-react";
 
 const Profile = () => {
-  const { user, profile, loading: authLoading, refetchProfile } = useAuth(false);
-  const [fullName, setFullName] = useState("");
+  const { user, profile, loading, refetchProfile } = useAuth();
+  const [name, setName] = useState("");
   const [employment, setEmployment] = useState("");
   const [ageGroup, setAgeGroup] = useState("");
   const [taxRegime, setTaxRegime] = useState("");
   const [saving, setSaving] = useState(false);
   const [documents, setDocuments] = useState<any[]>([]);
-  const { toast } = useToast();
 
   useEffect(() => {
     if (profile) {
-      setFullName(profile.full_name || "");
+      setName(profile.full_name || "");
       setEmployment(profile.employment_type || "");
       setAgeGroup(profile.age_group || "");
       setTaxRegime(profile.tax_regime || "");
     }
+  }, [profile]);
+
+  useEffect(() => {
     if (user) {
-      supabase.from("documents").select("id, file_name, status, created_at").order("created_at", { ascending: false }).then(({ data }: any) => setDocuments(data || []));
+      getDocuments().then((data) => {
+        setDocuments(Array.isArray(data) ? data.slice(0, 5) : []);
+      }).catch(() => { });
     }
-  }, [profile, user]);
+  }, [user]);
 
   const handleSave = async () => {
-    if (!user) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from("profiles").update({
-        full_name: fullName,
+      await updateProfile({
+        full_name: name,
         employment_type: employment,
         age_group: ageGroup,
         tax_regime: taxRegime,
-      }).eq("user_id", user.id);
-      if (error) throw error;
+      });
+      toast({ title: "Profile updated", description: "Your changes have been saved." });
       refetchProfile();
-      toast({ title: "Profile updated! ✅" });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally {
-      setSaving(false);
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
+    setSaving(false);
   };
 
-  if (authLoading) return null;
+  if (loading) return null;
 
   return (
     <div className="min-h-screen bg-background">
       <DashboardNav />
       <div className="container py-8 max-w-2xl">
-        <h1 className="font-display text-3xl font-bold text-foreground mb-8 flex items-center gap-2">
-          <User className="h-8 w-8 text-primary" /> Profile & Settings
-        </h1>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <h1 className="font-display text-3xl font-bold text-foreground mb-1">Profile</h1>
+          <p className="text-muted-foreground text-lg mb-8">Manage your account settings</p>
+        </motion.div>
 
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="font-display text-lg">Personal Details</CardTitle>
-            <CardDescription>Update your profile information</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Email</Label>
-              <Input value={user?.email || ""} disabled className="bg-muted" />
-            </div>
-            <div className="space-y-2">
-              <Label>Full Name</Label>
-              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Employment Type</Label>
-              <Select value={employment} onValueChange={setEmployment}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="salaried">Salaried</SelectItem>
-                  <SelectItem value="self-employed">Self-Employed</SelectItem>
-                  <SelectItem value="business">Business Owner</SelectItem>
-                  <SelectItem value="retired">Retired</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Age Group</Label>
-              <Select value={ageGroup} onValueChange={setAgeGroup}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="below-60">Below 60</SelectItem>
-                  <SelectItem value="60-80">60 – 80</SelectItem>
-                  <SelectItem value="above-80">Above 80</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Tax Regime Preference</Label>
-              <Select value={taxRegime} onValueChange={setTaxRegime}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="new">New Regime</SelectItem>
-                  <SelectItem value="old">Old Regime</SelectItem>
-                  <SelectItem value="unsure">Not Sure</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button onClick={handleSave} disabled={saving} className="rounded-full" style={{ background: "var(--gradient-primary)" }}>
-              <Save className="h-4 w-4 mr-2" /> {saving ? "Saving..." : "Save Changes"}
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-display text-lg flex items-center gap-2"><FileText className="h-5 w-5" /> Document History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {documents.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No documents uploaded yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {documents.map((doc) => (
-                  <div key={doc.id} className="flex items-center justify-between p-3 rounded-lg border border-border/50">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{doc.file_name}</p>
-                      <p className="text-xs text-muted-foreground">{new Date(doc.created_at).toLocaleDateString("en-IN")}</p>
-                    </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${doc.status === "analyzed" ? "bg-secondary/10 text-secondary" : "bg-accent/10 text-accent"}`}>
-                      {doc.status}
-                    </span>
-                  </div>
-                ))}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader><CardTitle className="font-display">Personal Information</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" value={user?.email || ""} disabled className="bg-muted/50" />
               </div>
-            )}
-          </CardContent>
-        </Card>
+              <div>
+                <Label htmlFor="name">Full Name</Label>
+                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="employment">Employment Type</Label>
+                <Select value={employment} onValueChange={setEmployment}>
+                  <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="salaried">Salaried</SelectItem>
+                    <SelectItem value="self-employed">Self Employed</SelectItem>
+                    <SelectItem value="business">Business Owner</SelectItem>
+                    <SelectItem value="freelancer">Freelancer</SelectItem>
+                    <SelectItem value="retired">Retired</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="age">Age Group</Label>
+                <Select value={ageGroup} onValueChange={setAgeGroup}>
+                  <SelectTrigger><SelectValue placeholder="Select age group" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="below-60">Below 60 years</SelectItem>
+                    <SelectItem value="60-80">60 to 80 years</SelectItem>
+                    <SelectItem value="above-80">Above 80 years</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="regime">Tax Regime</Label>
+                <Select value={taxRegime} onValueChange={setTaxRegime}>
+                  <SelectTrigger><SelectValue placeholder="Select regime" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="old">Old Regime</SelectItem>
+                    <SelectItem value="new">New Regime</SelectItem>
+                    <SelectItem value="not-sure">Not Sure</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button onClick={handleSave} disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                Save Changes
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="font-display">Recent Documents</CardTitle></CardHeader>
+            <CardContent>
+              {documents.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No documents uploaded yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {documents.map((doc) => (
+                    <div key={doc.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">{doc.file_name}</p>
+                        <p className="text-xs text-muted-foreground">{doc.status}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

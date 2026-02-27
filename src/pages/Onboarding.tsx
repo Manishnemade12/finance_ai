@@ -1,209 +1,183 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
+import { completeOnboarding } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { motion, AnimatePresence } from "framer-motion";
-import { Briefcase, DollarSign, Calendar, Scale, ArrowRight, ArrowLeft, CheckCircle2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { toast } from "@/hooks/use-toast";
+import { motion } from "framer-motion";
+import { Loader2, ArrowRight, ArrowLeft, CheckCircle } from "lucide-react";
 
-const steps = [
-  { id: "employment", title: "Employment Type", description: "What best describes your work?", icon: Briefcase },
-  { id: "income", title: "Income Sources", description: "Where does your income come from?", icon: DollarSign },
-  { id: "age", title: "Age Group", description: "This affects your tax slabs", icon: Calendar },
-  { id: "regime", title: "Tax Regime", description: "Which regime do you prefer?", icon: Scale },
+const EMPLOYMENT_TYPES = [
+  { value: "salaried", label: "Salaried" },
+  { value: "self-employed", label: "Self Employed" },
+  { value: "business", label: "Business Owner" },
+  { value: "freelancer", label: "Freelancer" },
+  { value: "retired", label: "Retired" },
 ];
 
-const employmentOptions = [
-  { value: "salaried", label: "Salaried", desc: "Working for a company" },
-  { value: "self-employed", label: "Self-Employed", desc: "Freelancer or consultant" },
-  { value: "business", label: "Business Owner", desc: "Running your own business" },
-  { value: "retired", label: "Retired", desc: "Pension income" },
+const INCOME_SOURCES = ["Salary", "Rental Income", "Interest Income", "Capital Gains", "Business Income", "Other"];
+
+const AGE_GROUPS = [
+  { value: "below-60", label: "Below 60 years" },
+  { value: "60-80", label: "60 to 80 years" },
+  { value: "above-80", label: "Above 80 years" },
 ];
 
-const incomeOptions = [
-  { value: "salary", label: "Salary" },
-  { value: "house_property", label: "House Property / Rent" },
-  { value: "business", label: "Business / Profession" },
-  { value: "capital_gains", label: "Capital Gains" },
-  { value: "interest", label: "Interest / Dividends" },
-  { value: "freelance", label: "Freelance / Consulting" },
-];
-
-const ageOptions = [
-  { value: "below-60", label: "Below 60", desc: "General taxpayer" },
-  { value: "60-80", label: "60 – 80 years", desc: "Senior citizen" },
-  { value: "above-80", label: "Above 80", desc: "Super senior citizen" },
-];
-
-const regimeOptions = [
-  { value: "new", label: "New Regime", desc: "Lower rates, fewer deductions. Good if you don't have many investments." },
-  { value: "old", label: "Old Regime", desc: "Higher rates, but many deductions available (80C, 80D, HRA, etc.)." },
-  { value: "unsure", label: "Not Sure", desc: "We'll analyze and recommend the best one for you!" },
+const TAX_REGIMES = [
+  { value: "old", label: "Old Tax Regime", description: "With deductions under sections 80C, 80D, etc." },
+  { value: "new", label: "New Tax Regime", description: "Lower tax rates, fewer deductions" },
+  { value: "not-sure", label: "Not Sure", description: "We'll help you decide" },
 ];
 
 const Onboarding = () => {
-  const [step, setStep] = useState(0);
+  const navigate = useNavigate();
+  const [step, setStep] = useState(1);
   const [employment, setEmployment] = useState("");
   const [incomeSources, setIncomeSources] = useState<string[]>([]);
   const [ageGroup, setAgeGroup] = useState("");
   const [taxRegime, setTaxRegime] = useState("");
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) navigate("/auth");
-    });
-  }, [navigate]);
-
-  const toggleIncome = (v: string) => {
-    setIncomeSources((prev) => prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]);
+  const toggleIncomeSource = (src: string) => {
+    setIncomeSources((prev) => prev.includes(src) ? prev.filter((s) => s !== src) : [...prev, src]);
   };
 
-  const canProceed = () => {
-    if (step === 0) return !!employment;
-    if (step === 1) return incomeSources.length > 0;
-    if (step === 2) return !!ageGroup;
-    if (step === 3) return !!taxRegime;
-    return false;
-  };
+  const handleSave = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { navigate("/auth"); return; }
 
-  const handleFinish = async () => {
-    setLoading(true);
+    setSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not logged in");
-
-      const { error } = await supabase.from("profiles").update({
+      await completeOnboarding({
         employment_type: employment,
         income_sources: incomeSources,
         age_group: ageGroup,
         tax_regime: taxRegime,
-        onboarding_completed: true,
-      }).eq("user_id", user.id);
-
-      if (error) throw error;
-
-      // Create initial financial data record
-      await supabase.from("financial_data").insert({
-        user_id: user.id,
-        financial_year: "2025-26",
       });
-
-      toast({ title: "Welcome aboard! 🎉", description: "Your profile is set up. Let's start saving on taxes!" });
+      toast({ title: "Profile complete!", description: "Let's get started with your tax planning." });
       navigate("/dashboard");
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
-    } finally {
-      setLoading(false);
     }
+    setSaving(false);
+  };
+
+  const canProceed = (s: number) => {
+    if (s === 1) return !!employment;
+    if (s === 2) return incomeSources.length > 0;
+    if (s === 3) return !!ageGroup;
+    if (s === 4) return !!taxRegime;
+    return false;
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ background: "var(--gradient-hero)" }}>
-      <div className="w-full max-w-lg">
-        <div className="text-center mb-8">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-display font-bold text-xl mx-auto mb-4">T</div>
-          <h1 className="font-display text-2xl font-bold text-foreground">Let's set up your profile</h1>
-          <p className="text-muted-foreground mt-1">Step {step + 1} of {steps.length}</p>
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-lg">
+        <div className="text-center mb-6">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground font-display font-bold text-2xl mx-auto mb-3">T</div>
+          <h1 className="font-display text-2xl font-bold text-foreground">Set Up Your Profile</h1>
+          <p className="text-muted-foreground">Step {step} of 4</p>
+          <div className="flex gap-1 mt-3 justify-center">
+            {[1, 2, 3, 4].map((s) => (
+              <div key={s} className={`h-1 w-10 rounded-full ${s <= step ? "bg-primary" : "bg-muted"}`} />
+            ))}
+          </div>
         </div>
 
-        {/* Progress bar */}
-        <div className="flex gap-2 mb-8">
-          {steps.map((_, i) => (
-            <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors ${i <= step ? "bg-primary" : "bg-muted"}`} />
-          ))}
-        </div>
+        <Card>
+          <CardContent className="p-6">
+            {step === 1 && (
+              <div>
+                <CardHeader className="px-0 pt-0"><CardTitle className="font-display">Employment Type</CardTitle>
+                  <CardDescription>What best describes your employment?</CardDescription></CardHeader>
+                <RadioGroup value={employment} onValueChange={setEmployment} className="space-y-2">
+                  {EMPLOYMENT_TYPES.map((t) => (
+                    <div key={t.value} className="flex items-center space-x-2 p-3 rounded-lg border border-border/50 hover:border-primary/30 transition-colors">
+                      <RadioGroupItem value={t.value} id={t.value} />
+                      <Label htmlFor={t.value} className="cursor-pointer">{t.label}</Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </div>
+            )}
 
-        <AnimatePresence mode="wait">
-          <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }}>
-            <Card className="border-border/50 shadow-xl">
-              <CardHeader>
-                <CardTitle className="font-display flex items-center gap-2">
-                  {(() => { const Icon = steps[step].icon; return <Icon className="h-5 w-5 text-primary" />; })()}
-                  {steps[step].title}
-                </CardTitle>
-                <CardDescription>{steps[step].description}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {step === 0 && (
-                  <div className="grid gap-3">
-                    {employmentOptions.map((opt) => (
-                      <button key={opt.value} onClick={() => setEmployment(opt.value)}
-                        className={`flex items-center justify-between p-4 rounded-xl border text-left transition-all ${employment === opt.value ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "border-border hover:border-primary/30"}`}>
-                        <div>
-                          <p className="font-medium text-foreground">{opt.label}</p>
-                          <p className="text-sm text-muted-foreground">{opt.desc}</p>
-                        </div>
-                        {employment === opt.value && <CheckCircle2 className="h-5 w-5 text-primary" />}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {step === 1 && (
-                  <div className="grid grid-cols-2 gap-3">
-                    {incomeOptions.map((opt) => (
-                      <button key={opt.value} onClick={() => toggleIncome(opt.value)}
-                        className={`p-4 rounded-xl border text-left transition-all ${incomeSources.includes(opt.value) ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "border-border hover:border-primary/30"}`}>
-                        <p className="font-medium text-sm text-foreground">{opt.label}</p>
-                      </button>
-                    ))}
-                    <p className="col-span-2 text-xs text-muted-foreground mt-1">Select all that apply</p>
-                  </div>
-                )}
-
-                {step === 2 && (
-                  <div className="grid gap-3">
-                    {ageOptions.map((opt) => (
-                      <button key={opt.value} onClick={() => setAgeGroup(opt.value)}
-                        className={`flex items-center justify-between p-4 rounded-xl border text-left transition-all ${ageGroup === opt.value ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "border-border hover:border-primary/30"}`}>
-                        <div>
-                          <p className="font-medium text-foreground">{opt.label}</p>
-                          <p className="text-sm text-muted-foreground">{opt.desc}</p>
-                        </div>
-                        {ageGroup === opt.value && <CheckCircle2 className="h-5 w-5 text-primary" />}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {step === 3 && (
-                  <div className="grid gap-3">
-                    {regimeOptions.map((opt) => (
-                      <button key={opt.value} onClick={() => setTaxRegime(opt.value)}
-                        className={`flex items-center justify-between p-4 rounded-xl border text-left transition-all ${taxRegime === opt.value ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "border-border hover:border-primary/30"}`}>
-                        <div>
-                          <p className="font-medium text-foreground">{opt.label}</p>
-                          <p className="text-sm text-muted-foreground">{opt.desc}</p>
-                        </div>
-                        {taxRegime === opt.value && <CheckCircle2 className="h-5 w-5 text-primary" />}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex justify-between mt-6">
-                  <Button variant="ghost" onClick={() => setStep(step - 1)} disabled={step === 0}>
-                    <ArrowLeft className="h-4 w-4 mr-1" /> Back
-                  </Button>
-                  {step < 3 ? (
-                    <Button onClick={() => setStep(step + 1)} disabled={!canProceed()} className="rounded-full px-6" style={{ background: "var(--gradient-primary)" }}>
-                      Next <ArrowRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  ) : (
-                    <Button onClick={handleFinish} disabled={!canProceed() || loading} className="rounded-full px-6" style={{ background: "var(--gradient-primary)" }}>
-                      {loading ? "Setting up..." : "Finish Setup"} <CheckCircle2 className="h-4 w-4 ml-1" />
-                    </Button>
-                  )}
+            {step === 2 && (
+              <div>
+                <CardHeader className="px-0 pt-0"><CardTitle className="font-display">Income Sources</CardTitle>
+                  <CardDescription>Select all sources of income (one or more)</CardDescription></CardHeader>
+                <div className="flex flex-wrap gap-2">
+                  {INCOME_SOURCES.map((src) => (
+                    <Badge
+                      key={src}
+                      variant={incomeSources.includes(src) ? "default" : "outline"}
+                      className="cursor-pointer px-3 py-1.5 text-sm"
+                      onClick={() => toggleIncomeSource(src)}
+                    >
+                      {incomeSources.includes(src) && <CheckCircle className="h-3 w-3 mr-1" />}
+                      {src}
+                    </Badge>
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </AnimatePresence>
-      </div>
+              </div>
+            )}
+
+            {step === 3 && (
+              <div>
+                <CardHeader className="px-0 pt-0"><CardTitle className="font-display">Age Group</CardTitle>
+                  <CardDescription>Your age affects tax slab rates</CardDescription></CardHeader>
+                <RadioGroup value={ageGroup} onValueChange={setAgeGroup} className="space-y-2">
+                  {AGE_GROUPS.map((g) => (
+                    <div key={g.value} className="flex items-center space-x-2 p-3 rounded-lg border border-border/50 hover:border-primary/30 transition-colors">
+                      <RadioGroupItem value={g.value} id={g.value} />
+                      <Label htmlFor={g.value} className="cursor-pointer">{g.label}</Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </div>
+            )}
+
+            {step === 4 && (
+              <div>
+                <CardHeader className="px-0 pt-0"><CardTitle className="font-display">Tax Regime</CardTitle>
+                  <CardDescription>Which regime do you want to use?</CardDescription></CardHeader>
+                <RadioGroup value={taxRegime} onValueChange={setTaxRegime} className="space-y-2">
+                  {TAX_REGIMES.map((r) => (
+                    <div key={r.value} className="flex items-center space-x-2 p-3 rounded-lg border border-border/50 hover:border-primary/30 transition-colors">
+                      <RadioGroupItem value={r.value} id={r.value} />
+                      <div>
+                        <Label htmlFor={r.value} className="cursor-pointer">{r.label}</Label>
+                        <p className="text-xs text-muted-foreground">{r.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </div>
+            )}
+
+            <div className="flex justify-between mt-6">
+              {step > 1 ? (
+                <Button variant="outline" onClick={() => setStep(step - 1)}>
+                  <ArrowLeft className="h-4 w-4 mr-1" /> Back
+                </Button>
+              ) : <div />}
+              {step < 4 ? (
+                <Button onClick={() => setStep(step + 1)} disabled={!canProceed(step)}>
+                  Next <ArrowRight className="h-4 w-4 ml-1" />
+                </Button>
+              ) : (
+                <Button onClick={handleSave} disabled={saving || !canProceed(4)}>
+                  {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                  Complete Setup
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 };

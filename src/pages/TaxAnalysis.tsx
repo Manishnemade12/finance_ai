@@ -1,223 +1,214 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { getFinancialData, updateFinancialData, getTaxAnalysis, runTaxAnalysis } from "@/lib/api";
 import DashboardNav from "@/components/DashboardNav";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { Brain, Loader2, TrendingDown, TrendingUp, IndianRupee, CheckCircle2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
+import { Loader2, Save, Brain, IndianRupee, TrendingDown, CheckCircle } from "lucide-react";
+
+const incomeFields = [
+  { key: "gross_salary", label: "Gross Salary" },
+  { key: "hra_received", label: "HRA Received" },
+  { key: "lta_received", label: "LTA Received" },
+  { key: "other_income", label: "Other Income" },
+  { key: "rental_income", label: "Rental Income" },
+  { key: "interest_income", label: "Interest Income" },
+  { key: "business_income", label: "Business Income" },
+];
+
+const deductionFields = [
+  { key: "deduction_80c", label: "Section 80C (PPF, ELSS, LIC, etc.)" },
+  { key: "deduction_80d", label: "Section 80D (Health Insurance)" },
+  { key: "deduction_80e", label: "Section 80E (Education Loan Interest)" },
+  { key: "deduction_80g", label: "Section 80G (Donations)" },
+  { key: "deduction_nps", label: "NPS Contribution (80CCD)" },
+  { key: "hra_exemption", label: "HRA Exemption" },
+  { key: "professional_tax", label: "Professional Tax" },
+];
 
 const TaxAnalysis = () => {
   const { user, profile, loading: authLoading } = useAuth();
-  const [financialData, setFinancialData] = useState<any>(null);
+  const [financialData, setFinancialData] = useState<any>({});
   const [analysis, setAnalysis] = useState<any>(null);
-  const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const { toast } = useToast();
+  const [analyzing, setAnalyzing] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchFinancialData();
-      fetchAnalysis();
-    }
+    if (user) loadData();
   }, [user]);
 
-  const fetchFinancialData = async () => {
-    const { data } = await supabase.from("financial_data").select("*").eq("financial_year", "2025-26").single();
-    if (data) {
-      setFinancialData(data);
-    } else if (user) {
-      // Create initial financial data if none exists
-      const { data: newData } = await supabase.from("financial_data").insert({
-        user_id: user.id,
-        financial_year: "2025-26",
-      }).select().single();
-      if (newData) setFinancialData(newData);
+  const loadData = async () => {
+    try {
+      const [fin, tax] = await Promise.all([getFinancialData(), getTaxAnalysis()]);
+      if (fin) setFinancialData(fin);
+      if (tax) setAnalysis(tax);
+    } catch {
+      // Data not available yet
     }
   };
 
-  const fetchAnalysis = async () => {
-    const { data } = await supabase.from("tax_analyses").select("*").eq("financial_year", "2025-26").single();
-    if (data) setAnalysis(data);
+  const handleFieldChange = (key: string, value: string) => {
+    setFinancialData((prev: any) => ({ ...prev, [key]: parseFloat(value) || 0 }));
   };
 
-  const updateField = (field: string, value: string) => {
-    setFinancialData((prev: any) => ({ ...prev, [field]: parseFloat(value) || 0 }));
-  };
-
-  const saveFinancialData = async () => {
-    if (!financialData || !user) return;
+  const handleSave = async () => {
     setSaving(true);
     try {
-      await supabase.from("financial_data").update(financialData).eq("id", financialData.id);
-      toast({ title: "Saved!" });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally {
-      setSaving(false);
+      await updateFinancialData(financialData);
+      toast({ title: "Saved!", description: "Financial data saved." });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
+    setSaving(false);
   };
 
-  const runAnalysis = async () => {
-    if (!financialData) return;
+  const handleAnalyze = async () => {
     setAnalyzing(true);
     try {
-      await saveFinancialData();
-      const { data, error } = await supabase.functions.invoke("tax-analysis", {
-        body: { financialData, profile },
-      });
-      if (error) throw error;
-      setAnalysis(data.data);
-      toast({ title: "Analysis complete! 🎉", description: "Check your tax breakdown below." });
-      fetchAnalysis();
-    } catch (err: any) {
-      toast({ title: "Analysis failed", description: err.message, variant: "destructive" });
-    } finally {
-      setAnalyzing(false);
+      const result = await runTaxAnalysis(financialData, profile || {});
+      setAnalysis(result.data);
+      toast({ title: "Analysis Complete!", description: "Your tax analysis is ready." });
+    } catch (error: any) {
+      toast({ title: "Analysis failed", description: error.message, variant: "destructive" });
     }
+    setAnalyzing(false);
   };
 
-  if (authLoading || !financialData) return null;
+  if (authLoading) return null;
 
-  const incomeFields = [
-    { key: "gross_salary", label: "Gross Salary" },
-    { key: "hra_received", label: "HRA Received" },
-    { key: "lta_received", label: "LTA Received" },
-    { key: "other_income", label: "Other Income" },
-    { key: "rental_income", label: "Rental Income" },
-    { key: "interest_income", label: "Interest Income" },
-    { key: "business_income", label: "Business Income" },
-  ];
-
-  const deductionFields = [
-    { key: "deductions_80c", label: "Section 80C (PPF, ELSS, LIC etc.)" },
-    { key: "deductions_80d", label: "Section 80D (Health Insurance)" },
-    { key: "deductions_80e", label: "Section 80E (Education Loan)" },
-    { key: "deductions_80g", label: "Section 80G (Donations)" },
-    { key: "deductions_nps", label: "NPS (80CCD)" },
-    { key: "deductions_hra", label: "HRA Exemption" },
-    { key: "deductions_lta", label: "LTA Exemption" },
-    { key: "other_deductions", label: "Other Deductions" },
-  ];
+  const fmt = (n: number) => `₹${(n || 0).toLocaleString("en-IN")}`;
 
   return (
     <div className="min-h-screen bg-background">
       <DashboardNav />
       <div className="container py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="font-display text-3xl font-bold text-foreground">Tax Analysis</h1>
-            <p className="text-muted-foreground">Enter your financials and get AI-powered tax guidance</p>
-          </div>
-          <Button onClick={runAnalysis} disabled={analyzing} className="rounded-full" style={{ background: "var(--gradient-primary)" }}>
-            {analyzing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Analyzing...</> : <><Brain className="h-4 w-4 mr-2" /> Run AI Analysis</>}
-          </Button>
-        </div>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <h1 className="font-display text-3xl font-bold text-foreground mb-1">Tax Analysis</h1>
+          <p className="text-muted-foreground text-lg mb-8">Enter your financial data and get AI-powered tax analysis</p>
+        </motion.div>
 
         <div className="grid gap-8 lg:grid-cols-2">
-          {/* Income inputs */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-display text-lg flex items-center gap-2"><TrendingUp className="h-5 w-5 text-secondary" /> Income Details</CardTitle>
-              <CardDescription>FY 2025-26</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              {incomeFields.map((f) => (
-                <div key={f.key} className="grid grid-cols-2 gap-2 items-center">
-                  <Label className="text-sm">{f.label}</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₹</span>
-                    <Input type="number" className="pl-7" value={financialData[f.key] || ""} onChange={(e) => updateField(f.key, e.target.value)} />
+          {/* Input Form */}
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-display flex items-center gap-2"><IndianRupee className="h-5 w-5" /> Income Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {incomeFields.map((f) => (
+                  <div key={f.key}>
+                    <Label htmlFor={f.key} className="text-sm">{f.label}</Label>
+                    <Input
+                      id={f.key}
+                      type="number"
+                      value={financialData[f.key] || ""}
+                      onChange={(e) => handleFieldChange(f.key, e.target.value)}
+                      placeholder="0"
+                    />
                   </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+                ))}
+              </CardContent>
+            </Card>
 
-          {/* Deduction inputs */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-display text-lg flex items-center gap-2"><TrendingDown className="h-5 w-5 text-primary" /> Deductions Claimed</CardTitle>
-              <CardDescription>Under various sections</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              {deductionFields.map((f) => (
-                <div key={f.key} className="grid grid-cols-2 gap-2 items-center">
-                  <Label className="text-sm">{f.label}</Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₹</span>
-                    <Input type="number" className="pl-7" value={financialData[f.key] || ""} onChange={(e) => updateField(f.key, e.target.value)} />
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-display flex items-center gap-2"><TrendingDown className="h-5 w-5" /> Deductions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {deductionFields.map((f) => (
+                  <div key={f.key}>
+                    <Label htmlFor={f.key} className="text-sm">{f.label}</Label>
+                    <Input
+                      id={f.key}
+                      type="number"
+                      value={financialData[f.key] || ""}
+                      onChange={(e) => handleFieldChange(f.key, e.target.value)}
+                      placeholder="0"
+                    />
                   </div>
-                </div>
-              ))}
-              <Button variant="outline" onClick={saveFinancialData} disabled={saving} className="mt-2">
-                {saving ? "Saving..." : "Save Data"}
+                ))}
+              </CardContent>
+            </Card>
+
+            <div className="flex gap-3">
+              <Button onClick={handleSave} disabled={saving} variant="outline">
+                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                Save Data
               </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Analysis Results */}
-        {analysis && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-10 space-y-8">
-            {/* Regime Comparison */}
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card className={`${(analysis.recommended_regime || analysis.recommended_regime) === "old" ? "ring-2 ring-primary" : ""}`}>
-                <CardHeader>
-                  <CardTitle className="font-display text-lg">Old Regime</CardTitle>
-                  {(analysis.recommended_regime) === "old" && <span className="text-xs text-primary font-medium flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Recommended</span>}
-                </CardHeader>
-                <CardContent>
-                  <p className="text-3xl font-display font-bold text-foreground">₹{Number(analysis.old_regime_tax || 0).toLocaleString("en-IN")}</p>
-                  <p className="text-sm text-muted-foreground mt-1">Estimated tax payable</p>
-                </CardContent>
-              </Card>
-              <Card className={`${(analysis.recommended_regime) === "new" ? "ring-2 ring-primary" : ""}`}>
-                <CardHeader>
-                  <CardTitle className="font-display text-lg">New Regime</CardTitle>
-                  {(analysis.recommended_regime) === "new" && <span className="text-xs text-primary font-medium flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Recommended</span>}
-                </CardHeader>
-                <CardContent>
-                  <p className="text-3xl font-display font-bold text-foreground">₹{Number(analysis.new_regime_tax || 0).toLocaleString("en-IN")}</p>
-                  <p className="text-sm text-muted-foreground mt-1">Estimated tax payable</p>
-                </CardContent>
-              </Card>
+              <Button onClick={handleAnalyze} disabled={analyzing}>
+                {analyzing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Brain className="h-4 w-4 mr-2" />}
+                {analyzing ? "Analyzing..." : "Run AI Analysis"}
+              </Button>
             </div>
+          </div>
 
-            {/* Summary */}
-            {analysis.analysis_summary && (
+          {/* Analysis Results */}
+          <div className="space-y-6">
+            {analysis ? (
+              <>
+                <Card className="border-primary/20">
+                  <CardHeader>
+                    <CardTitle className="font-display">Tax Comparison</CardTitle>
+                    <CardDescription>FY 2025-26 regime comparison</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className={`p-4 rounded-xl border ${analysis.recommended_regime === "old" ? "border-primary bg-primary/5" : "border-border"}`}>
+                        <p className="text-sm text-muted-foreground mb-1">Old Regime</p>
+                        <p className="text-2xl font-display font-bold">{fmt(analysis.old_regime_tax)}</p>
+                        {analysis.recommended_regime === "old" && (
+                          <div className="flex items-center gap-1 mt-1 text-primary text-xs"><CheckCircle className="h-3 w-3" /> Recommended</div>
+                        )}
+                      </div>
+                      <div className={`p-4 rounded-xl border ${analysis.recommended_regime === "new" ? "border-primary bg-primary/5" : "border-border"}`}>
+                        <p className="text-sm text-muted-foreground mb-1">New Regime</p>
+                        <p className="text-2xl font-display font-bold">{fmt(analysis.new_regime_tax)}</p>
+                        {analysis.recommended_regime === "new" && (
+                          <div className="flex items-center gap-1 mt-1 text-primary text-xs"><CheckCircle className="h-3 w-3" /> Recommended</div>
+                        )}
+                      </div>
+                    </div>
+                    {analysis.analysis_summary && (
+                      <div className="p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">{analysis.analysis_summary}</div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {analysis.deduction_suggestions?.length > 0 && (
+                  <Card>
+                    <CardHeader><CardTitle className="font-display">Deduction Suggestions</CardTitle></CardHeader>
+                    <CardContent className="space-y-3">
+                      {analysis.deduction_suggestions.map((s: any, i: number) => (
+                        <div key={i} className="p-3 rounded-lg border border-border/50">
+                          <div className="flex justify-between items-start mb-1">
+                            <p className="font-medium text-sm">{s.title}</p>
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">{s.section}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{s.description}</p>
+                          {s.potential_saving > 0 && (
+                            <p className="text-xs text-green-600 mt-1">Potential saving: {fmt(s.potential_saving)}</p>
+                          )}
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            ) : (
               <Card>
-                <CardHeader><CardTitle className="font-display text-lg">AI Summary</CardTitle></CardHeader>
-                <CardContent><p className="text-muted-foreground leading-relaxed">{analysis.analysis_summary}</p></CardContent>
+                <CardContent className="p-10 text-center text-muted-foreground">
+                  <Brain className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                  <p className="font-display font-semibold mb-2">No analysis yet</p>
+                  <p className="text-sm">Enter your financial details and click "Run AI Analysis" to get your tax breakdown.</p>
+                </CardContent>
               </Card>
             )}
-
-            {/* Deduction Suggestions */}
-            {analysis.deduction_suggestions && analysis.deduction_suggestions.length > 0 && (
-              <div>
-                <h2 className="font-display text-xl font-bold text-foreground mb-4">💡 Deduction Suggestions</h2>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {analysis.deduction_suggestions.map((s: any, i: number) => (
-                    <Card key={i} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-5">
-                        <div className="flex items-start justify-between mb-2">
-                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">{s.section}</span>
-                          <span className="text-xs text-secondary font-medium">Save ₹{Number(s.potential_saving || 0).toLocaleString("en-IN")}</span>
-                        </div>
-                        <h3 className="font-medium text-foreground mb-1">{s.title}</h3>
-                        <p className="text-sm text-muted-foreground">{s.description}</p>
-                        {s.max_limit > 0 && <p className="text-xs text-muted-foreground mt-2">Max limit: ₹{Number(s.max_limit).toLocaleString("en-IN")}</p>}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            )}
-          </motion.div>
-        )}
+          </div>
+        </div>
       </div>
     </div>
   );

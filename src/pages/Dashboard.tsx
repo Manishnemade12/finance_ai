@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { getDashboardStats } from "@/lib/api";
 import DashboardNav from "@/components/DashboardNav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,35 +21,19 @@ const Dashboard = () => {
   }, [user]);
 
   const fetchDashboardData = async () => {
-    const [docsRes, finRes, analysisRes] = await Promise.all([
-      supabase.from("documents").select("id", { count: "exact", head: true }),
-      supabase.from("financial_data").select("*").eq("financial_year", "2025-26").single(),
-      supabase.from("tax_analyses").select("*").eq("financial_year", "2025-26").single(),
-    ]);
-
-    const fin = finRes.data;
-    const analysis = analysisRes.data;
-    const totalIncome = fin ? Number(fin.gross_salary || 0) + Number(fin.other_income || 0) + Number(fin.rental_income || 0) + Number(fin.interest_income || 0) + Number(fin.business_income || 0) : 0;
-
-    const oldTax = analysis ? Number(analysis.old_regime_tax || 0) : 0;
-    const newTax = analysis ? Number(analysis.new_regime_tax || 0) : 0;
-    const estimatedTax = analysis ? Math.min(oldTax, newTax) : 0;
-    const savings = analysis ? Math.abs(oldTax - newTax) : 0;
-
-    setStats({
-      documents: docsRes.count || 0,
-      totalIncome,
-      estimatedTax,
-      savings,
-    });
-
-    if (fin) {
-      setIncomeData([
-        { name: "Salary", value: Number(fin.gross_salary || 0) },
-        { name: "Rental", value: Number(fin.rental_income || 0) },
-        { name: "Interest", value: Number(fin.interest_income || 0) },
-        { name: "Other", value: Number(fin.other_income || 0) + Number(fin.business_income || 0) },
-      ].filter(d => d.value > 0));
+    try {
+      const data = await getDashboardStats();
+      setStats({
+        documents: data.documents || 0,
+        totalIncome: data.totalIncome || 0,
+        estimatedTax: data.estimatedTax || 0,
+        savings: data.savings || 0,
+      });
+      if (data.incomeData) {
+        setIncomeData(data.incomeData);
+      }
+    } catch {
+      // Stats not available yet
     }
   };
 

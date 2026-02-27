@@ -1,13 +1,10 @@
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { getFinancialData, getTaxAnalysis } from "@/lib/api";
 import DashboardNav from "@/components/DashboardNav";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { IndianRupee, TrendingDown, TrendingUp, CheckCircle2, FileText } from "lucide-react";
-
-const COLORS = ["hsl(250, 85%, 60%)", "hsl(170, 70%, 45%)", "hsl(38, 95%, 55%)", "hsl(280, 80%, 55%)", "hsl(200, 80%, 50%)", "hsl(0, 75%, 55%)"];
+import { IndianRupee, TrendingUp, TrendingDown, FileText, CheckCircle } from "lucide-react";
 
 const TaxSummary = () => {
   const { user, loading: authLoading } = useAuth();
@@ -15,152 +12,175 @@ const TaxSummary = () => {
   const [analysis, setAnalysis] = useState<any>(null);
 
   useEffect(() => {
-    if (user) {
-      supabase.from("financial_data").select("*").eq("financial_year", "2025-26").single().then(({ data }: any) => setFinancialData(data));
-      supabase.from("tax_analyses").select("*").eq("financial_year", "2025-26").single().then(({ data }: any) => setAnalysis(data));
-    }
+    if (user) loadData();
   }, [user]);
+
+  const loadData = async () => {
+    try {
+      const [fin, tax] = await Promise.all([getFinancialData(), getTaxAnalysis()]);
+      if (fin) setFinancialData(fin);
+      if (tax) setAnalysis(tax);
+    } catch {
+      // Not available yet
+    }
+  };
 
   if (authLoading) return null;
 
-  const totalIncome = financialData ? Number(financialData.gross_salary || 0) + Number(financialData.other_income || 0) + Number(financialData.rental_income || 0) + Number(financialData.interest_income || 0) + Number(financialData.business_income || 0) : 0;
+  const fmt = (n: number) => `₹${(n || 0).toLocaleString("en-IN")}`;
 
-  const totalDeductions = financialData ? Number(financialData.deductions_80c || 0) + Number(financialData.deductions_80d || 0) + Number(financialData.deductions_80e || 0) + Number(financialData.deductions_80g || 0) + Number(financialData.deductions_nps || 0) + Number(financialData.deductions_hra || 0) + Number(financialData.deductions_lta || 0) + Number(financialData.other_deductions || 0) : 0;
+  const totalIncome = financialData
+    ? (financialData.gross_salary || 0) +
+    (financialData.other_income || 0) +
+    (financialData.rental_income || 0) +
+    (financialData.interest_income || 0) +
+    (financialData.business_income || 0)
+    : 0;
 
-  const incomeData = financialData ? [
-    { name: "Salary", value: Number(financialData.gross_salary || 0) },
-    { name: "Rental", value: Number(financialData.rental_income || 0) },
-    { name: "Interest", value: Number(financialData.interest_income || 0) },
-    { name: "Business", value: Number(financialData.business_income || 0) },
-    { name: "Other", value: Number(financialData.other_income || 0) },
-  ].filter(d => d.value > 0) : [];
+  const totalDeductions = financialData
+    ? (financialData.deduction_80c || 0) +
+    (financialData.deduction_80d || 0) +
+    (financialData.deduction_80e || 0) +
+    (financialData.deduction_80g || 0) +
+    (financialData.deduction_nps || 0) +
+    (financialData.hra_exemption || 0) +
+    (financialData.professional_tax || 0)
+    : 0;
 
-  const deductionData = financialData ? [
-    { name: "80C", value: Number(financialData.deductions_80c || 0) },
-    { name: "80D", value: Number(financialData.deductions_80d || 0) },
-    { name: "NPS", value: Number(financialData.deductions_nps || 0) },
-    { name: "HRA", value: Number(financialData.deductions_hra || 0) },
-    { name: "80E", value: Number(financialData.deductions_80e || 0) },
-    { name: "Other", value: Number(financialData.other_deductions || 0) },
-  ].filter(d => d.value > 0) : [];
+  const incomeItems = [
+    { label: "Gross Salary", value: financialData?.gross_salary || 0 },
+    { label: "Rental Income", value: financialData?.rental_income || 0 },
+    { label: "Interest Income", value: financialData?.interest_income || 0 },
+    { label: "Other Income", value: financialData?.other_income || 0 },
+    { label: "Business Income", value: financialData?.business_income || 0 },
+  ].filter((i) => i.value > 0);
 
-  const regimeData = analysis ? [
-    { name: "Old Regime", tax: Number(analysis.old_regime_tax || 0) },
-    { name: "New Regime", tax: Number(analysis.new_regime_tax || 0) },
-  ] : [];
-
-  const fmt = (n: number) => `₹${n.toLocaleString("en-IN")}`;
+  const deductionItems = [
+    { label: "Section 80C", value: financialData?.deduction_80c || 0 },
+    { label: "Section 80D (Health)", value: financialData?.deduction_80d || 0 },
+    { label: "Section 80E (Education)", value: financialData?.deduction_80e || 0 },
+    { label: "Section 80G (Donations)", value: financialData?.deduction_80g || 0 },
+    { label: "NPS (80CCD)", value: financialData?.deduction_nps || 0 },
+    { label: "HRA Exemption", value: financialData?.hra_exemption || 0 },
+    { label: "Professional Tax", value: financialData?.professional_tax || 0 },
+  ].filter((i) => i.value > 0);
 
   return (
     <div className="min-h-screen bg-background">
       <DashboardNav />
-      <div className="container py-8">
-        <div className="mb-8">
-          <h1 className="font-display text-3xl font-bold text-foreground flex items-center gap-2">
-            <FileText className="h-8 w-8 text-primary" /> Tax Summary Report
-          </h1>
-          <p className="text-muted-foreground">FY 2025-26 — Consolidated view</p>
-        </div>
+      <div className="container py-8 max-w-3xl">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <h1 className="font-display text-3xl font-bold text-foreground mb-1">Tax Summary</h1>
+          <p className="text-muted-foreground text-lg mb-8">FY 2025-26 overview</p>
+        </motion.div>
 
-        {/* Quick Stats */}
-        <div className="grid gap-4 md:grid-cols-4 mb-8">
-          {[
-            { label: "Total Income", value: fmt(totalIncome), icon: TrendingUp, color: "text-secondary" },
-            { label: "Total Deductions", value: fmt(totalDeductions), icon: TrendingDown, color: "text-primary" },
-            { label: "Old Regime Tax", value: analysis ? fmt(Number(analysis.old_regime_tax || 0)) : "—", icon: IndianRupee, color: "text-accent" },
-            { label: "New Regime Tax", value: analysis ? fmt(Number(analysis.new_regime_tax || 0)) : "—", icon: IndianRupee, color: "text-accent" },
-          ].map((stat, i) => (
-            <motion.div key={stat.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
+        {!financialData && !analysis ? (
+          <Card>
+            <CardContent className="p-10 text-center text-muted-foreground">
+              <FileText className="h-12 w-12 mx-auto mb-4 opacity-30" />
+              <p className="font-display font-semibold mb-2">No data yet</p>
+              <p className="text-sm">Go to Tax Analysis to enter your financial data.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-6">
+            {/* Total summary */}
+            <div className="grid grid-cols-3 gap-4">
               <Card>
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <stat.icon className={`h-4 w-4 ${stat.color}`} />
-                    <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  </div>
-                  <p className="text-2xl font-display font-bold text-foreground">{stat.value}</p>
+                <CardContent className="p-4 text-center">
+                  <TrendingUp className="h-5 w-5 text-secondary mx-auto mb-1" />
+                  <p className="text-xs text-muted-foreground">Total Income</p>
+                  <p className="text-xl font-display font-bold">{fmt(totalIncome)}</p>
                 </CardContent>
               </Card>
-            </motion.div>
-          ))}
-        </div>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <TrendingDown className="h-5 w-5 text-primary mx-auto mb-1" />
+                  <p className="text-xs text-muted-foreground">Total Deductions</p>
+                  <p className="text-xl font-display font-bold">{fmt(totalDeductions)}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <IndianRupee className="h-5 w-5 text-accent mx-auto mb-1" />
+                  <p className="text-xs text-muted-foreground">Est. Tax</p>
+                  <p className="text-xl font-display font-bold">
+                    {analysis ? fmt(Math.min(analysis.old_regime_tax || 0, analysis.new_regime_tax || 0)) : "—"}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
 
-        {/* Charts */}
-        <div className="grid gap-8 lg:grid-cols-2 mb-8">
-          {incomeData.length > 0 && (
-            <Card>
-              <CardHeader><CardTitle className="font-display text-lg">Income Breakdown</CardTitle></CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={250}>
-                  <PieChart>
-                    <Pie data={incomeData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} dataKey="value" label={({ name, value }) => `${name}: ${fmt(value)}`}>
-                      {incomeData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip formatter={(v: number) => fmt(v)} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
+            {/* Income breakdown */}
+            {incomeItems.length > 0 && (
+              <Card>
+                <CardHeader><CardTitle className="font-display">Income Breakdown</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {incomeItems.map((item) => (
+                      <div key={item.label} className="flex justify-between items-center py-1 border-b border-border/30 last:border-0">
+                        <span className="text-sm text-muted-foreground">{item.label}</span>
+                        <span className="text-sm font-medium">{fmt(item.value)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between items-center pt-2 font-semibold">
+                      <span>Total</span>
+                      <span>{fmt(totalIncome)}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-          {deductionData.length > 0 && (
-            <Card>
-              <CardHeader><CardTitle className="font-display text-lg">Deductions Breakdown</CardTitle></CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart data={deductionData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                    <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                    <Tooltip formatter={(v: number) => fmt(v)} />
-                    <Bar dataKey="value" fill="hsl(250, 85%, 60%)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+            {/* Deductions breakdown */}
+            {deductionItems.length > 0 && (
+              <Card>
+                <CardHeader><CardTitle className="font-display">Deductions Claimed</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {deductionItems.map((item) => (
+                      <div key={item.label} className="flex justify-between items-center py-1 border-b border-border/30 last:border-0">
+                        <span className="text-sm text-muted-foreground">{item.label}</span>
+                        <span className="text-sm font-medium">{fmt(item.value)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between items-center pt-2 font-semibold">
+                      <span>Total</span>
+                      <span>{fmt(totalDeductions)}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-        {/* Regime Comparison */}
-        {regimeData.length > 0 && (
-          <Card className="mb-8">
-            <CardHeader><CardTitle className="font-display text-lg">Old vs New Regime Comparison</CardTitle></CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={regimeData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis type="number" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
-                  <YAxis dataKey="name" type="category" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} width={100} />
-                  <Tooltip formatter={(v: number) => fmt(v)} />
-                  <Bar dataKey="tax" radius={[0, 4, 4, 0]}>
-                    {regimeData.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-              {analysis?.recommended_regime && (
-                <div className="mt-4 flex items-center gap-2 text-sm text-primary font-medium">
-                  <CheckCircle2 className="h-4 w-4" /> Recommended: {analysis.recommended_regime === "old" ? "Old" : "New"} Regime
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* AI Summary */}
-        {analysis?.analysis_summary && (
-          <Card>
-            <CardHeader><CardTitle className="font-display text-lg">AI Analysis Summary</CardTitle></CardHeader>
-            <CardContent><p className="text-muted-foreground leading-relaxed">{analysis.analysis_summary}</p></CardContent>
-          </Card>
-        )}
-
-        {!analysis && !financialData && (
-          <Card className="border-dashed border-2">
-            <CardContent className="text-center py-16">
-              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="font-display text-lg font-semibold mb-1">No data yet</h3>
-              <p className="text-muted-foreground text-sm">Go to Tax Analysis to enter your financial data and run an analysis.</p>
-            </CardContent>
-          </Card>
+            {/* Regime comparison */}
+            {analysis && (
+              <Card className="border-primary/20">
+                <CardHeader><CardTitle className="font-display">Regime Comparison</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className={`p-4 rounded-xl border ${analysis.recommended_regime === "old" ? "border-primary bg-primary/5" : "border-border"}`}>
+                      <p className="text-sm text-muted-foreground mb-1">Old Regime</p>
+                      <p className="text-2xl font-display font-bold">{fmt(analysis.old_regime_tax)}</p>
+                      {analysis.recommended_regime === "old" && (
+                        <div className="flex items-center gap-1 mt-1 text-primary text-xs"><CheckCircle className="h-3 w-3" /> Recommended</div>
+                      )}
+                    </div>
+                    <div className={`p-4 rounded-xl border ${analysis.recommended_regime === "new" ? "border-primary bg-primary/5" : "border-border"}`}>
+                      <p className="text-sm text-muted-foreground mb-1">New Regime</p>
+                      <p className="text-2xl font-display font-bold">{fmt(analysis.new_regime_tax)}</p>
+                      {analysis.recommended_regime === "new" && (
+                        <div className="flex items-center gap-1 mt-1 text-primary text-xs"><CheckCircle className="h-3 w-3" /> Recommended</div>
+                      )}
+                    </div>
+                  </div>
+                  {analysis.analysis_summary && (
+                    <div className="mt-4 p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">{analysis.analysis_summary}</div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
         )}
       </div>
     </div>

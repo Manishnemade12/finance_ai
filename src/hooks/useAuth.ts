@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getProfile } from "@/lib/api";
 import type { User } from "@supabase/supabase-js";
 
 export function useAuth(redirectIfNoProfile = true) {
@@ -17,7 +18,7 @@ export function useAuth(redirectIfNoProfile = true) {
       }
       setUser(session.user);
       // Fetch profile after auth state set
-      setTimeout(() => fetchProfile(session.user.id), 0);
+      setTimeout(() => fetchProfileData(), 0);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -27,20 +28,24 @@ export function useAuth(redirectIfNoProfile = true) {
         return;
       }
       setUser(session.user);
-      fetchProfile(session.user.id);
+      fetchProfileData();
     });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const fetchProfile = async (userId: string) => {
-    const { data } = await supabase.from("profiles").select("*").eq("user_id", userId).single();
-    setProfile(data);
-    if (redirectIfNoProfile && data && !data.onboarding_completed) {
-      navigate("/onboarding");
+  const fetchProfileData = async () => {
+    try {
+      const data = await getProfile();
+      setProfile(data);
+      if (redirectIfNoProfile && data && !data.onboarding_completed) {
+        navigate("/onboarding");
+      }
+    } catch {
+      // Profile fetch may fail if not yet created
     }
     setLoading(false);
   };
 
-  return { user, profile, loading, refetchProfile: () => user && fetchProfile(user.id) };
+  return { user, profile, loading, refetchProfile: () => fetchProfileData() };
 }
