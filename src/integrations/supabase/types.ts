@@ -14,7 +14,204 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      documents: {
+        Row: {
+          created_at: string
+          extracted_data: Json | null
+          file_name: string
+          file_path: string
+          file_size: number | null
+          file_type: string
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          extracted_data?: Json | null
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          file_type: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          extracted_data?: Json | null
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          file_type?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      financial_data: {
+        Row: {
+          business_income: number | null
+          created_at: string
+          deductions_80c: number | null
+          deductions_80d: number | null
+          deductions_80e: number | null
+          deductions_80g: number | null
+          deductions_hra: number | null
+          deductions_lta: number | null
+          deductions_nps: number | null
+          financial_year: string
+          gross_salary: number | null
+          hra_received: number | null
+          id: string
+          interest_income: number | null
+          lta_received: number | null
+          other_deductions: number | null
+          other_income: number | null
+          raw_data: Json | null
+          rental_income: number | null
+          standard_deduction: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          business_income?: number | null
+          created_at?: string
+          deductions_80c?: number | null
+          deductions_80d?: number | null
+          deductions_80e?: number | null
+          deductions_80g?: number | null
+          deductions_hra?: number | null
+          deductions_lta?: number | null
+          deductions_nps?: number | null
+          financial_year?: string
+          gross_salary?: number | null
+          hra_received?: number | null
+          id?: string
+          interest_income?: number | null
+          lta_received?: number | null
+          other_deductions?: number | null
+          other_income?: number | null
+          raw_data?: Json | null
+          rental_income?: number | null
+          standard_deduction?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          business_income?: number | null
+          created_at?: string
+          deductions_80c?: number | null
+          deductions_80d?: number | null
+          deductions_80e?: number | null
+          deductions_80g?: number | null
+          deductions_hra?: number | null
+          deductions_lta?: number | null
+          deductions_nps?: number | null
+          financial_year?: string
+          gross_salary?: number | null
+          hra_received?: number | null
+          id?: string
+          interest_income?: number | null
+          lta_received?: number | null
+          other_deductions?: number | null
+          other_income?: number | null
+          raw_data?: Json | null
+          rental_income?: number | null
+          standard_deduction?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          age_group: string | null
+          created_at: string
+          email: string | null
+          employment_type: string | null
+          full_name: string | null
+          id: string
+          income_sources: string[] | null
+          onboarding_completed: boolean
+          tax_regime: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          age_group?: string | null
+          created_at?: string
+          email?: string | null
+          employment_type?: string | null
+          full_name?: string | null
+          id?: string
+          income_sources?: string[] | null
+          onboarding_completed?: boolean
+          tax_regime?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          age_group?: string | null
+          created_at?: string
+          email?: string | null
+          employment_type?: string | null
+          full_name?: string | null
+          id?: string
+          income_sources?: string[] | null
+          onboarding_completed?: boolean
+          tax_regime?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tax_analyses: {
+        Row: {
+          analysis_summary: string | null
+          created_at: string
+          deduction_suggestions: Json | null
+          financial_year: string
+          id: string
+          new_regime_tax: number | null
+          old_regime_tax: number | null
+          recommended_regime: string | null
+          scheme_recommendations: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          analysis_summary?: string | null
+          created_at?: string
+          deduction_suggestions?: Json | null
+          financial_year?: string
+          id?: string
+          new_regime_tax?: number | null
+          old_regime_tax?: number | null
+          recommended_regime?: string | null
+          scheme_recommendations?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          analysis_summary?: string | null
+          created_at?: string
+          deduction_suggestions?: Json | null
+          financial_year?: string
+          id?: string
+          new_regime_tax?: number | null
+          old_regime_tax?: number | null
+          recommended_regime?: string | null
+          scheme_recommendations?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
