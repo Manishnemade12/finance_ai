@@ -149,3 +149,28 @@ export async function getPersonalizedSchemes() {
         method: "POST",
     });
 }
+
+// ---------- TaxBuddy (Standalone) ----------
+
+export async function getTaxBuddyStrategy(data: {
+    age: number;
+    res_status: "Resident" | "NRI" | "RNOR";
+    has_business: boolean;
+    has_cap_gains: boolean;
+    est_income: number;
+    has_agri: boolean;
+    is_director: boolean;
+}) {
+    return request<{
+        success: boolean;
+        data: {
+            strategy: string;
+            itr_form: string;
+            primary_reason: string;
+            smart_alerts: string;
+        };
+    }>("/api/taxbuddy/strategy", {
+        method: "POST",
+        body: JSON.stringify(data),
+    });
+}

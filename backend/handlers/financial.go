@@ -61,6 +61,12 @@ func (h *FinancialHandler) UpdateFinancialData(w http.ResponseWriter, r *http.Re
 	delete(body, "created_at")
 	delete(body, "updated_at")
 
+	body = normalizeFinancialUpdate(body)
+	if len(body) == 0 {
+		jsonError(w, "no valid financial fields provided", http.StatusBadRequest)
+		return
+	}
+
 	result, err := h.SB.Update("financial_data", "user_id=eq."+userID+"&financial_year=eq.2025-26", body, jwt)
 	if err != nil {
 		jsonError(w, err.Error(), http.StatusInternalServerError)
