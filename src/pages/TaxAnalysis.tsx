@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { getFinancialData, updateFinancialData, getTaxAnalysis, runTaxAnalysis } from "@/lib/api";
 import DashboardNav from "@/components/DashboardNav";
@@ -8,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Loader2, Save, Brain, IndianRupee, TrendingDown, CheckCircle } from "lucide-react";
+import { Loader2, Save, Brain, IndianRupee, TrendingDown, CheckCircle, Sparkles } from "lucide-react";
 
 const incomeFields = [
   { key: "gross_salary", label: "Gross Salary" },
@@ -21,13 +22,14 @@ const incomeFields = [
 ];
 
 const deductionFields = [
-  { key: "deduction_80c", label: "Section 80C (PPF, ELSS, LIC, etc.)" },
-  { key: "deduction_80d", label: "Section 80D (Health Insurance)" },
-  { key: "deduction_80e", label: "Section 80E (Education Loan Interest)" },
-  { key: "deduction_80g", label: "Section 80G (Donations)" },
-  { key: "deduction_nps", label: "NPS Contribution (80CCD)" },
-  { key: "hra_exemption", label: "HRA Exemption" },
-  { key: "professional_tax", label: "Professional Tax" },
+  { key: "deductions_80c", label: "Section 80C (PPF, ELSS, LIC, etc.)" },
+  { key: "deductions_80d", label: "Section 80D (Health Insurance)" },
+  { key: "deductions_80e", label: "Section 80E (Education Loan Interest)" },
+  { key: "deductions_80g", label: "Section 80G (Donations)" },
+  { key: "deductions_nps", label: "NPS Contribution (80CCD)" },
+  { key: "deductions_hra", label: "HRA Exemption" },
+  { key: "deductions_lta", label: "LTA Exemption" },
+  { key: "other_deductions", label: "Other Deductions (incl. Professional Tax)" },
 ];
 
 const TaxAnalysis = () => {
@@ -89,6 +91,14 @@ const TaxAnalysis = () => {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="font-display text-3xl font-bold text-foreground mb-1">Tax Analysis</h1>
           <p className="text-muted-foreground text-lg mb-8">Enter your financial data and get AI-powered tax analysis</p>
+          <div className="mb-6">
+            <Link to="/taxbuddy">
+              <Button variant="outline">
+                <Sparkles className="h-4 w-4 mr-2" />
+                Open TaxBuddy (Autonomous Strategy Flow)
+              </Button>
+            </Link>
+          </div>
         </motion.div>
 
         <div className="grid gap-8 lg:grid-cols-2">

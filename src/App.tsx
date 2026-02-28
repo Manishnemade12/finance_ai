@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Onboarding from "./pages/Onboarding";
 import Documents from "./pages/Documents";
 import TaxAnalysis from "./pages/TaxAnalysis";
+import TaxBuddy from "./pages/TaxBuddy";
 import Schemes from "./pages/Schemes";
 import TaxSummary from "./pages/TaxSummary";
 import Profile from "./pages/Profile";
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/documents" element={<Documents />} />
           <Route path="/tax-analysis" element={<TaxAnalysis />} />
+          <Route path="/taxbuddy" element={<TaxBuddy />} />
           <Route path="/schemes" element={<Schemes />} />
           <Route path="/tax-summary" element={<TaxSummary />} />
           <Route path="/profile" element={<Profile />} />

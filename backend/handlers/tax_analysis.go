@@ -52,7 +52,13 @@ func (h *TaxAnalysisHandler) RunAnalysis(w http.ResponseWriter, r *http.Request)
 				finUpdate[k] = v
 			}
 		}
-		h.SB.Update("financial_data", "user_id=eq."+userID+"&financial_year=eq.2025-26", finUpdate, jwt)
+		finUpdate = normalizeFinancialUpdate(finUpdate)
+		if len(finUpdate) > 0 {
+			if _, err := h.SB.Update("financial_data", "user_id=eq."+userID+"&financial_year=eq.2025-26", finUpdate, jwt); err != nil {
+				jsonError(w, "failed to save financial data: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
 	}
 
 	// Call the tax-analysis edge function (which has the Lovable API key)

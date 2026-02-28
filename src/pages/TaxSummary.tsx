@@ -38,13 +38,14 @@ const TaxSummary = () => {
     : 0;
 
   const totalDeductions = financialData
-    ? (financialData.deduction_80c || 0) +
-    (financialData.deduction_80d || 0) +
-    (financialData.deduction_80e || 0) +
-    (financialData.deduction_80g || 0) +
-    (financialData.deduction_nps || 0) +
-    (financialData.hra_exemption || 0) +
-    (financialData.professional_tax || 0)
+    ? (financialData.deductions_80c || 0) +
+    (financialData.deductions_80d || 0) +
+    (financialData.deductions_80e || 0) +
+    (financialData.deductions_80g || 0) +
+    (financialData.deductions_nps || 0) +
+    (financialData.deductions_hra || 0) +
+    (financialData.deductions_lta || 0) +
+    (financialData.other_deductions || 0)
     : 0;
 
   const incomeItems = [
@@ -56,13 +57,14 @@ const TaxSummary = () => {
   ].filter((i) => i.value > 0);
 
   const deductionItems = [
-    { label: "Section 80C", value: financialData?.deduction_80c || 0 },
-    { label: "Section 80D (Health)", value: financialData?.deduction_80d || 0 },
-    { label: "Section 80E (Education)", value: financialData?.deduction_80e || 0 },
-    { label: "Section 80G (Donations)", value: financialData?.deduction_80g || 0 },
-    { label: "NPS (80CCD)", value: financialData?.deduction_nps || 0 },
-    { label: "HRA Exemption", value: financialData?.hra_exemption || 0 },
-    { label: "Professional Tax", value: financialData?.professional_tax || 0 },
+    { label: "Section 80C", value: financialData?.deductions_80c || 0 },
+    { label: "Section 80D (Health)", value: financialData?.deductions_80d || 0 },
+    { label: "Section 80E (Education)", value: financialData?.deductions_80e || 0 },
+    { label: "Section 80G (Donations)", value: financialData?.deductions_80g || 0 },
+    { label: "NPS (80CCD)", value: financialData?.deductions_nps || 0 },
+    { label: "HRA Exemption", value: financialData?.deductions_hra || 0 },
+    { label: "LTA Exemption", value: financialData?.deductions_lta || 0 },
+    { label: "Other Deductions", value: financialData?.other_deductions || 0 },
   ].filter((i) => i.value > 0);
 
   return (
