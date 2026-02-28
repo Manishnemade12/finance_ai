@@ -28,7 +28,7 @@ func main() {
 	documentsH := &handlers.DocumentsHandler{SB: sb}
 	financialH := &handlers.FinancialHandler{SB: sb}
 	taxAnalysisH := &handlers.TaxAnalysisHandler{SB: sb}
-	taxBuddyH := &handlers.TaxBuddyHandler{}
+	taxBuddyH := &handlers.TaxBuddyHandler{SB: sb}
 	dashboardH := &handlers.DashboardHandler{SB: sb}
 	schemesH := &handlers.SchemesHandler{SB: sb}
 
@@ -84,6 +84,8 @@ func main() {
 		r.Get("/tax-analysis", taxAnalysisH.GetAnalysis)
 		r.Post("/tax-analysis/run", taxAnalysisH.RunAnalysis)
 		r.Post("/taxbuddy/strategy", taxBuddyH.GenerateStrategy)
+		r.Post("/taxbuddy/live/start", taxBuddyH.StartLiveCoach)
+		r.Post("/taxbuddy/live/message", taxBuddyH.LiveCoachMessage)
 
 		// Dashboard
 		r.Get("/dashboard/stats", dashboardH.GetStats)
