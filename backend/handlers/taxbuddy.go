@@ -8,9 +8,13 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/csv-mongo-dreams/backend/services"
 )
 
-type TaxBuddyHandler struct{}
+type TaxBuddyHandler struct {
+	SB *services.SupabaseClient
+}
 
 type taxBuddyRequest struct {
 	Age         int     `json:"age"`

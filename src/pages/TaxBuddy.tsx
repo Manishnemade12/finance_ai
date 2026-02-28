@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "@/hooks/use-toast";
 import { Brain, Loader2, ArrowLeft, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 
 type TaxBuddyForm = {
   age: number;
@@ -84,6 +85,13 @@ const TaxBuddy = () => {
         <div className="mb-8">
           <h1 className="font-display text-3xl font-bold text-foreground mb-1">TaxBuddy Assistant</h1>
           <p className="text-muted-foreground text-lg">Answer step-by-step and get a personalized FY 2025-26 strategy</p>
+          <div className="mt-4">
+            <Link to="/taxbuddy-live">
+              <Button variant="outline" className="gap-2">
+                <Brain className="h-4 w-4" /> Open Real-time ITR Live Coach
+              </Button>
+            </Link>
+          </div>
         </div>
 
         <Card>
