@@ -91,11 +91,17 @@ const TaxAnalysis = () => {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="font-display text-3xl font-bold text-foreground mb-1">Tax Analysis</h1>
           <p className="text-muted-foreground text-lg mb-8">Enter your financial data and get AI-powered tax analysis</p>
-          <div className="mb-6">
+          <div className="mb-6 flex gap-3 flex-wrap">
             <Link to="/taxbuddy">
               <Button variant="outline">
                 <Sparkles className="h-4 w-4 mr-2" />
                 Open TaxBuddy (Autonomous Strategy Flow)
+              </Button>
+            </Link>
+            <Link to="/taxbuddy-live">
+              <Button>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Open TaxBuddy Live (Real-time Filing)
               </Button>
             </Link>
           </div>
