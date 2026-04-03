@@ -31,7 +31,10 @@ func NewSupabaseClient() *SupabaseClient {
 
 // ValidateToken calls Supabase auth.getUser with the given JWT to validate it.
 func (s *SupabaseClient) ValidateToken(token string) (string, string, error) {
-	req, err := http.NewRequest("GET", s.URL+"/auth/v1/user", nil)
+	url := s.URL + "/auth/v1/user"
+	fmt.Printf("📡 Validating token against Supabase: %s\n", s.URL)
+	
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", "", err
 	}
@@ -40,12 +43,14 @@ func (s *SupabaseClient) ValidateToken(token string) (string, string, error) {
 
 	resp, err := s.HTTPClient.Do(req)
 	if err != nil {
+		fmt.Printf("❌ HTTP Error: %v\n", err)
 		return "", "", err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("❌ Supabase returned %d: %s\n", resp.StatusCode, string(body))
 		return "", "", fmt.Errorf("auth validation failed: %s", string(body))
 	}
 

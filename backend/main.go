@@ -22,6 +22,7 @@ func main() {
 
 	// Initialize services
 	sb := services.NewSupabaseClient()
+	fmt.Printf("🔧 Supabase URL: %s\n", sb.URL)
 
 	// Initialize handlers
 	profileH := &handlers.ProfileHandler{SB: sb}
